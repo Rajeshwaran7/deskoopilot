@@ -9,6 +9,7 @@ interface Template {
   name: string;
   type: string;
   description?: string;
+  metadata?: { category?: string; description?: string };
 }
 
 export default function TemplatesPage() {
@@ -53,7 +54,9 @@ export default function TemplatesPage() {
               <Link key={template._id} href={`/documents/${template._id}`} className="rounded-3xl border border-slate-200 bg-white p-6 shadow-panel transition hover:border-sky-300">
                 <p className="text-sm text-slate-500 uppercase tracking-[0.18em]">{template.type.replace('_', ' ')}</p>
                 <h2 className="mt-4 text-xl font-semibold text-slate-950">{template.name}</h2>
-                <p className="mt-3 text-slate-600">{template.description || 'Open the editor with the selected template and start your AI-assisted workflow.'}</p>
+                <p className="mt-3 text-slate-600">
+                  {template.description || template.metadata?.description || 'Open the editor with the selected template and start your AI-assisted workflow.'}
+                </p>
               </Link>
             ))
           ) : (

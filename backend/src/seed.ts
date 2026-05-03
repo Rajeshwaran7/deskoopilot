@@ -1,27 +1,48 @@
 import mongoose from 'mongoose';
 import { TemplateModel } from './models/Template.model.js';
 import { ComplianceRuleModel } from './models/ComplianceRule.model.js';
+import { UserModel } from './models/User.model.js';
 import { connectDatabase } from './config/database.js';
-import { getConfig } from './config/env.js';
+import { loadEnvironment } from './config/env.js';
+import { DEMO_USER_OBJECT_ID } from './config/constants.js';
+import { ClauseRepository } from './repositories/clause.repository.js';
+import { SEED_CLAUSES, SEED_RULES } from './seed/compliance-seed.js';
+
+loadEnvironment();
 
 async function seedData() {
   await connectDatabase();
 
-  // Seed templates
+  const demoUserId = new mongoose.Types.ObjectId(DEMO_USER_OBJECT_ID);
+  await UserModel.findByIdAndUpdate(
+    demoUserId,
+    {
+      email: 'demo@deskoopilot.local',
+      password: 'not-used-change-with-auth',
+      plan: 'pro',
+      role: 'admin'
+    },
+    { upsert: true }
+  );
+
+  const clauseRepo = new ClauseRepository();
+  await clauseRepo.upsertMany(SEED_CLAUSES);
+
   const templates = [
     {
       name: 'Offer Letter - Entry Level',
-      type: 'offer_letter',
-      content: 'Dear {{candidateName}},\n\nWe are pleased to offer you the position of {{position}} at our company. Your starting salary will be {{salary}} per annum.\n\nBest regards,\nHR Team',
-      placeholders: ['candidateName', 'position', 'salary'],
-      ownerId: new mongoose.Types.ObjectId() // Mock owner
+      type: 'offer_letter' as const,
+      content:
+        'Dear {{candidateName}},\n\nWe are pleased to offer you the position of {{position}}. Your monthly gross compensation will be ₹{{salary}}.\n\nWork state: {{state}}. (For compliance checks, also provide establishment employeeCount={{employeeCount}} and monthly gross for ESI={{grossSalary}}.)\n\nBest regards,\nHR Team',
+      placeholders: ['candidateName', 'position', 'salary', 'state', 'employeeCount', 'grossSalary'],
+      ownerId: demoUserId
     },
     {
       name: 'Leave Policy',
-      type: 'policy',
+      type: 'policy' as const,
       content: 'This leave policy outlines the entitlements for employees. Annual leave is {{annualLeaveDays}} days.',
       placeholders: ['annualLeaveDays'],
-      ownerId: new mongoose.Types.ObjectId()
+      ownerId: demoUserId
     }
   ];
 
@@ -29,31 +50,17 @@ async function seedData() {
     await TemplateModel.findOneAndUpdate({ name: template.name }, template, { upsert: true });
   }
 
-  // Seed compliance rules
-  const rules = [
-    {
-      name: 'PF Clause for Low Salary',
-      description: 'Add PF clause if salary is below 15000',
-      condition: { '<': [{ 'var': 'variables.salary' }, 15000] },
-      action: { type: 'suggestion', payload: 'Include Provident Fund clause as per EPF Act.' },
-      region: 'India',
-      severity: 'medium'
-    },
-    {
-      name: 'Tamil Nadu Shops Act',
-      description: 'Include Shops Act clause for Tamil Nadu',
-      condition: { '==': [{ 'var': 'variables.state' }, 'Tamil Nadu'] },
-      action: { type: 'inject_clause', payload: 'This agreement is subject to the Tamil Nadu Shops and Establishments Act, 1947.' },
-      region: 'Tamil Nadu',
-      severity: 'high'
-    }
-  ];
-
-  for (const rule of rules) {
+  for (const rule of SEED_RULES) {
+    if (!rule.name) continue;
     await ComplianceRuleModel.findOneAndUpdate({ name: rule.name }, rule, { upsert: true });
   }
 
-  console.log('Seeding completed');
+  // Retire legacy duplicate rule names from early MVP seed (optional cleanup)
+  await ComplianceRuleModel.deleteMany({
+    name: { $in: ['PF Clause for Low Salary', 'Tamil Nadu Shops Act'] }
+  });
+
+  console.log('Seeding completed. Demo user ObjectId:', DEMO_USER_OBJECT_ID);
   process.exit(0);
 }
 

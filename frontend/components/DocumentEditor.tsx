@@ -3,18 +3,27 @@
 import { useEffect, useState } from 'react';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { aiEditDocument } from '../lib/api';
+import { aiEditDocument, patchDocument } from '../lib/api';
 
 interface DocumentEditorProps {
   content: string;
   onChange: (value: string) => void;
   onPromptComplete: (updatedContent: string) => void;
-  documentId?: string; // Add documentId prop
+  documentId?: string;
+  /** Called after a successful AI edit (server persisted). Use to refresh risk / version. */
+  onAiEditComplete?: () => void;
 }
 
-export default function DocumentEditor({ content, onChange, onPromptComplete, documentId }: DocumentEditorProps) {
+export default function DocumentEditor({
+  content,
+  onChange,
+  onPromptComplete,
+  documentId,
+  onAiEditComplete
+}: DocumentEditorProps) {
   const [prompt, setPrompt] = useState('Update this document to reflect Tamil Nadu Shops Act compliance.');
   const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editor = useEditor({
     extensions: [StarterKit],
@@ -27,6 +36,25 @@ export default function DocumentEditor({ content, onChange, onPromptComplete, do
     if (!editor) return;
     editor.commands.setContent(content);
   }, [content, editor]);
+
+  const handleSaveDraft = async () => {
+    if (!documentId) {
+      onPromptComplete(content);
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      await patchDocument(documentId, content);
+      onAiEditComplete?.();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to save draft';
+      setError(errorMessage);
+      console.error('Failed to save draft:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleApplyPrompt = async () => {
     if (!documentId) {
@@ -42,6 +70,7 @@ export default function DocumentEditor({ content, onChange, onPromptComplete, do
         throw new Error('Invalid response format from server');
       }
       onPromptComplete(updatedContent);
+      onAiEditComplete?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to edit document';
       setError(errorMessage);
@@ -61,10 +90,11 @@ export default function DocumentEditor({ content, onChange, onPromptComplete, do
           </div>
           <button
             type="button"
-            onClick={() => onPromptComplete(content)}
-            className="rounded-2xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700"
+            onClick={() => void handleSaveDraft()}
+            disabled={saving}
+            className="rounded-2xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:opacity-50"
           >
-            Save Draft
+            {saving ? 'Saving…' : 'Save draft'}
           </button>
         </div>
 

@@ -14,13 +14,13 @@ export default function HomePage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <Link href="/templates" className="rounded-2xl border border-slate-200 bg-slate-50 p-6 transition hover:border-sky-300 hover:bg-sky-50">
-              <p className="text-sm font-semibold text-slate-900">Template library</p>
-              <p className="mt-3 text-slate-600">Create and manage HR templates with placeholders for automatic document generation.</p>
+            <Link href="/dashboard" className="rounded-2xl border border-slate-200 bg-slate-50 p-6 transition hover:border-sky-300 hover:bg-sky-50">
+              <p className="text-sm font-semibold text-slate-900">Dashboard</p>
+              <p className="mt-3 text-slate-600">Documents, risk overview, approvals, and GenAI assists in one place.</p>
             </Link>
-            <Link href="/documents" className="rounded-2xl border border-slate-200 bg-slate-50 p-6 transition hover:border-sky-300 hover:bg-sky-50">
-              <p className="text-sm font-semibold text-slate-900">Document editor</p>
-              <p className="mt-3 text-slate-600">Edit documents using AI prompts and see compliance insights on the side panel.</p>
+            <Link href="/templates" className="rounded-2xl border border-slate-200 bg-slate-50 p-6 transition hover:border-sky-300 hover:bg-sky-50">
+              <p className="text-sm font-semibold text-slate-900">Templates &amp; editor</p>
+              <p className="mt-3 text-slate-600">Pick a template, generate a document, and continue in the workspace.</p>
             </Link>
           </div>
         </div>
