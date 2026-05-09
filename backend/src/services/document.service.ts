@@ -128,6 +128,42 @@ export class DocumentService {
     return doc;
   }
 
+  async generateDocumentWithRAG(userIdInput: string, userInput: string, documentType: string) {
+    const userId = resolveUserId(userIdInput);
+
+    const generated = await aiService.generateDocumentWithRAG(userInput, documentType);
+    const ruleResult = await this.ruleEngine.evaluate({
+      content: generated.generatedContent,
+      variables: {} // No variables for RAG generation
+    });
+
+    const created = await this.documentRepository.create({
+      userId: new mongoose.Types.ObjectId(userId),
+      templateId: null, // No template for RAG
+      generatedContent: generated.generatedContent,
+      variables: { userInput, documentType, retrievedClauses: generated.retrievedClauses },
+      riskScore: ruleResult.riskScore,
+      suggestions: ruleResult.suggestions,
+      complianceIssues: ruleResult.complianceIssues,
+      status: 'review',
+      version: 1,
+      versionHistory: [],
+      approvalStage: 'none',
+      approvalEvents: []
+    });
+
+    const doc = created.toObject();
+    await recordAudit({
+      entityType: 'Document',
+      entityId: String(doc._id),
+      action: 'document.created_rag',
+      userId,
+      details: { documentType, userInputPreview: userInput.slice(0, 200) }
+    });
+
+    return doc;
+  }
+
   async editDocumentWithPrompt(documentId: string, prompt: string) {
     if (!isValidObjectId(documentId)) {
       throw new Error('Invalid documentId format');

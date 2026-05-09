@@ -18,6 +18,12 @@ export const generateDocumentSchema = z.object({
   variables: z.record(z.any())
 });
 
+export const generateDocumentWithRAGSchema = z.object({
+  userId: z.string().min(1),
+  userInput: z.string().min(10),
+  documentType: z.string().min(1)
+});
+
 export const aiEditSchema = z.object({
   documentId: z.string().min(1),
   prompt: z.string().min(10)

@@ -5,6 +5,7 @@ import {
   getDocumentAudit,
   deleteDocument,
   generateDocument,
+  generateDocumentWithRAG,
   aiEditDocument,
   analyzeDocument,
   workflowDocument,
@@ -18,6 +19,7 @@ export const documentRouter = express.Router();
 
 documentRouter.get('/', listDocuments);
 documentRouter.post('/generate', generateDocument);
+documentRouter.post('/generate-rag', generateDocumentWithRAG);
 documentRouter.post('/ai-edit', aiEditDocument);
 documentRouter.post('/analyze', analyzeDocument);
 

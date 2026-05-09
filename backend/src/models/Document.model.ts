@@ -28,7 +28,7 @@ export type ApprovalStage = 'none' | 'pending_hr' | 'pending_manager' | 'approve
 
 export interface IDocument {
   userId: mongoose.Types.ObjectId;
-  templateId: mongoose.Types.ObjectId;
+  templateId?: mongoose.Types.ObjectId;
   generatedContent: string;
   variables: Record<string, unknown>;
   riskScore: number;
@@ -82,7 +82,7 @@ const ApprovalEventSchema = new mongoose.Schema<IApprovalEvent>(
 const DocumentSchema = new mongoose.Schema<IDocument>(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template', required: true },
+    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'Template' },
     generatedContent: { type: String, required: true },
     variables: { type: Object, default: {} },
     riskScore: { type: Number, default: 0 },

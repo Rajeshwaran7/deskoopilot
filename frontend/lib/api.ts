@@ -43,8 +43,18 @@ export function deleteDocument(id: string, actorUserId?: string) {
   return api.delete(`/documents/${id}`, { params: actorUserId ? { actorUserId } : undefined });
 }
 
+export interface GenerateDocumentWithRAGPayload {
+  userId: string;
+  userInput: string;
+  documentType: string;
+}
+
 export function generateDocument(payload: GenerateDocumentPayload) {
   return api.post('/documents/generate', payload);
+}
+
+export function generateDocumentWithRAG(payload: GenerateDocumentWithRAGPayload) {
+  return api.post('/documents/generate-rag', payload);
 }
 
 export function aiEditDocument(documentId: string, prompt: string) {

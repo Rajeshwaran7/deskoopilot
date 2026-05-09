@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { DocumentService } from '../services/document.service.js';
 import {
   generateDocumentSchema,
+  generateDocumentWithRAGSchema,
   aiEditSchema,
   analyzeDocumentSchema,
   workflowDocumentSchema,
@@ -86,6 +87,21 @@ export async function generateDocument(req: Request, res: Response, next: NextFu
     }
     const { templateId, variables, userId } = validation.data;
     const document = await documentService.generateDocument(userId, templateId, variables);
+    res.status(201).json({ success: true, data: document });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function generateDocumentWithRAG(req: Request, res: Response, next: NextFunction) {
+  try {
+    const validation = generateDocumentWithRAGSchema.safeParse(req.body);
+    if (!validation.success) {
+      const error = validationError(validation.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; '));
+      return next(error);
+    }
+    const { userId, userInput, documentType } = validation.data;
+    const document = await documentService.generateDocumentWithRAG(userId, userInput, documentType);
     res.status(201).json({ success: true, data: document });
   } catch (error) {
     next(error);

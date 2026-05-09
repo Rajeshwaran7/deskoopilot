@@ -1,8 +1,10 @@
 import OpenAI from 'openai';
 import { getConfig } from '../../config/env.js';
+import { ClauseRepository } from '../../repositories/clause.repository.js';
 import type {
   AIService,
   GenerateDocumentResult,
+  GenerateDocumentWithRAGResult,
   EditDocumentResult,
   AnalyzeComplianceResult,
   ExplainRiskResult,
@@ -115,6 +117,27 @@ ${JSON.stringify(variables, null, 2)}
 Return only valid JSON: { "generatedContent": string }`;
 }
 
+function buildRAGPrompt(userInput: string, documentType: string, retrievedClauses: Array<{ title: string; body: string }>) {
+  const clausesText = retrievedClauses.map(c => `Title: ${c.title}\nContent: ${c.body}`).join('\n\n');
+
+  return `You are an expert legal document generator. Create a ${documentType} based on the user's requirements.
+
+User Requirements:
+${userInput}
+
+Relevant Clauses and Templates Retrieved:
+${clausesText}
+
+Generate a complete, professional ${documentType} incorporating the relevant clauses where appropriate. Ensure it's legally sound and compliant.
+
+Return only valid JSON with the following shape:
+{
+  "generatedContent": string,
+  "retrievedClauses": [{"title": string, "body": string}],
+  "metadata": { "engine": string }
+}`;
+}
+
 function parseJson<T>(value: string): T {
   try {
     return JSON.parse(value) as T;
@@ -180,6 +203,44 @@ export class OpenAIProvider implements AIService {
     const result = parseJson<GenerateDocumentResult>(text);
 
     return { generatedContent: result.generatedContent, metadata: { engine: this.model } };
+  }
+
+  async generateDocumentWithRAG(userInput: string, documentType: string): Promise<GenerateDocumentWithRAGResult> {
+    // Retrieve relevant clauses based on user input
+    const clauseRepo = new ClauseRepository();
+    const allClauses = await clauseRepo.findFiltered({}); // Get all clauses for now, in real RAG we'd search
+    // Simple retrieval: filter clauses that contain keywords from userInput
+    const keywords = userInput.toLowerCase().split(' ');
+    const retrievedClauses = allClauses.filter(clause => 
+      keywords.some(keyword => 
+        clause.title.toLowerCase().includes(keyword) || 
+        clause.body.toLowerCase().includes(keyword) ||
+        clause.tags.some(tag => tag.toLowerCase().includes(keyword))
+      )
+    ).slice(0, 5); // Limit to 5 relevant clauses
+
+    if (this.useMock) {
+      const mockContent = `Mock ${documentType} generated based on: ${userInput}\n\nIncorporating clauses:\n${retrievedClauses.map(c => `- ${c.title}`).join('\n')}`;
+      return {
+        generatedContent: mockContent,
+        retrievedClauses: retrievedClauses.map(c => ({ title: c.title, body: c.body })),
+        metadata: { engine: 'mock-ai' }
+      };
+    }
+
+    const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [
+      { role: 'system', content: 'You are an expert legal document generator specializing in contracts and agreements.' },
+      { role: 'user', content: buildRAGPrompt(userInput, documentType, retrievedClauses.map(c => ({ title: c.title, body: c.body }))) }
+    ];
+
+    const text = await this.createChatCompletion(messages, 4096);
+    const result = parseJson<GenerateDocumentWithRAGResult>(text);
+
+    return { 
+      generatedContent: result.generatedContent, 
+      retrievedClauses: result.retrievedClauses, 
+      metadata: { engine: this.model } 
+    };
   }
 
   async editDocumentWithPrompt(content: string, prompt: string): Promise<EditDocumentResult> {

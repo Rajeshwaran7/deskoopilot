@@ -25,12 +25,15 @@ export interface AutoFixResult {
   tokens: number;
 }
 
-export interface SuggestCompliantResult {
+export interface GenerateDocumentWithRAGResult {
   generatedContent: string;
+  retrievedClauses: Array<{ title: string; body: string }>;
+  metadata: { engine: string };
 }
 
 export interface AIService {
   generateDocument(template: string, variables: Record<string, unknown>): Promise<GenerateDocumentResult>;
+  generateDocumentWithRAG(userInput: string, documentType: string): Promise<GenerateDocumentWithRAGResult>;
   editDocumentWithPrompt(content: string, prompt: string): Promise<EditDocumentResult>;
   analyzeCompliance(content: string, variables: Record<string, unknown>): Promise<AnalyzeComplianceResult>;
   explainRisk(
@@ -51,6 +54,7 @@ const provider = new OpenAIProvider();
 
 export const aiService: AIService = {
   generateDocument: (template, variables) => provider.generateDocument(template, variables),
+  generateDocumentWithRAG: (userInput, documentType) => provider.generateDocumentWithRAG(userInput, documentType),
   editDocumentWithPrompt: (content, prompt) => provider.editDocumentWithPrompt(content, prompt),
   analyzeCompliance: (content, variables) => provider.analyzeCompliance(content, variables),
   explainRisk: (content, variables, issues, suggestions) =>

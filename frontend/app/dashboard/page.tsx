@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { deleteDocument, listDocuments } from '../../lib/api';
+import { deleteDocument, listDocuments, generateDocumentWithRAG } from '../../lib/api';
 import { getDefaultUserId } from '../../lib/user';
 
 interface TemplateRef {
@@ -25,6 +25,10 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<DocumentRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showRAGModal, setShowRAGModal] = useState(false);
+  const [ragInput, setRagInput] = useState('');
+  const [ragDocumentType, setRagDocumentType] = useState('contract');
+  const [generating, setGenerating] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -45,6 +49,30 @@ export default function DashboardPage() {
       load();
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleGenerateWithRAG = async () => {
+    if (!ragInput.trim()) {
+      setError('Please describe what document you need.');
+      return;
+    }
+    setGenerating(true);
+    setError(null);
+    try {
+      await generateDocumentWithRAG({
+        userId: getDefaultUserId(),
+        userInput: ragInput,
+        documentType: ragDocumentType
+      });
+      setShowRAGModal(false);
+      setRagInput('');
+      load();
+    } catch (e) {
+      console.error(e);
+      setError('Failed to generate document with RAG. Is the API running?');
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -79,6 +107,13 @@ export default function DashboardPage() {
           >
             New from template
           </Link>
+          <button
+            type="button"
+            onClick={() => setShowRAGModal(true)}
+            className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white transition hover:bg-emerald-700"
+          >
+            Generate with AI (RAG)
+          </button>
           <Link
             href="/clauses"
             className="rounded-2xl border border-slate-200 px-5 py-3 font-semibold text-slate-800 transition hover:bg-slate-50"
@@ -140,6 +175,70 @@ export default function DashboardPage() {
           </div>
         )}
       </section>
+
+      {/* RAG Modal */}
+      {showRAGModal && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 p-4">
+          <div className="rounded-2xl bg-white p-8 shadow-lg max-w-md w-full">
+            <h2 className="text-xl font-semibold text-slate-950">Generate Document with AI</h2>
+            <p className="mt-2 text-sm text-slate-600">
+              Describe what contract or agreement you need. The AI will retrieve relevant clauses and generate it.
+            </p>
+
+            <div className="mt-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-900">Document Type</label>
+                <select
+                  value={ragDocumentType}
+                  onChange={(e) => setRagDocumentType(e.target.value)}
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                >
+                  <option value="contract">Service Agreement / Contract</option>
+                  <option value="sla">Service Level Agreement (SLA)</option>
+                  <option value="nda">Non-Disclosure Agreement (NDA)</option>
+                  <option value="policy">Company Policy</option>
+                  <option value="agreement">General Agreement</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-900">Your Requirements</label>
+                <textarea
+                  value={ragInput}
+                  onChange={(e) => setRagInput(e.target.value)}
+                  placeholder="e.g., Create a service agreement for software development services. Must include maintenance clauses, response time SLAs, and confidentiality..."
+                  rows={4}
+                  className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {error && <p className="text-sm text-rose-600">{error}</p>}
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRAGModal(false);
+                    setError(null);
+                  }}
+                  disabled={generating}
+                  className="flex-1 rounded-lg border border-slate-300 px-4 py-2 font-medium text-slate-900 transition hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGenerateWithRAG}
+                  disabled={generating}
+                  className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 font-medium text-white transition hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {generating ? 'Generating…' : 'Generate'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
